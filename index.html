@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>IT Pro - Flipbook Reader</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+    <style>
+        body { background-color: #1a1a1a; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; color: white; font-family: sans-serif; }
+        #flipbook { display: none; box-shadow: 0 0 50px rgba(0,0,0,0.9); }
+        .page { background-color: white; }
+        canvas { width: 100%; height: 100%; }
+        #status { padding: 20px; border-radius: 10px; background: #2c3e50; border: 1px solid #3498db; }
+    </style>
+</head>
+<body>
+
+    <div id="status">กำลังดึงข้อมูลจาก Google Drive (อาจใช้เวลา 5-10 วินาที)...</div>
+    <div id="flipbook"></div>
+
+    <script>
+        // ใช้ ID จากไฟล์ ep2.pdf ของคุณ
+        const fileId = '13uIfgThc9cObcSjUYpcLtEEqf-NsQRua';
+        
+        // ใช้ Proxy ตัวที่เสถียรที่สุดเพื่อข้ามระบบป้องกัน CORS
+        const pdfUrl = `https://cors-anywhere.herokuapp.com/https://drive.google.com/uc?id=${fileId}&export=download`;
+
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.worker.min.js';
+
+        async function init() {
+            const statusLabel = document.getElementById('status');
+            try {
+                // โหลดไฟล์ PDF
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+                const flipbook = $('#flipbook');
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    statusLabel.innerText = `กำลังประมวลผลหน้าที่ ${pageNum} / ${pdf.numPages}`;
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    
+                    const pageDiv = $('<div class="page"></div>').append(canvas);
+                    flipbook.append(pageDiv);
+                }
+
+                $(statusLabel).hide();
+                flipbook.show().turn({ width: 1000, height: 650, autoCenter: true });
+
+            } catch (err) {
+                console.error(err);
+                statusLabel.innerHTML = `<span style="color:#ff6b6b">โหลดไม่สำเร็จ</span><br><small>ลองเปิดหน้าเว็บนี้อีกครั้ง หรือใช้ Edge/Chrome รุ่นล่าสุด</small>`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
